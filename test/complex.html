@@ -1,0 +1,20 @@
+
+{@
+	function sum(a,b){ 
+		return a + b;
+	};
+@}
+
+{@ var block = @}
+	<div>
+		<p> 这个区间的HTML被赋值，可以重复使用！！！</p>
+	</div>
+{@ ; @}
+
+<!-- 注释：循环 -->
+{@ for(var ii=0;ii<=5;ii++){  @}
+	<h1>这是变量${name}</h1>
+	<p>调用模板变量 {= sum(ii,10)*2 =}</p>
+{@ } @}
+
+{= block =}

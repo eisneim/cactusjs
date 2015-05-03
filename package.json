@@ -1,0 +1,22 @@
+{
+  "name": "cactusjs",
+  "version": "1.0.0",
+  "description": "快，简单，粗暴的JS模板引擎",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "mocha --compilers js:babel/register test/index.test.js"
+  },
+  "keywords": [
+    "tempate",
+    "engine",
+    "模板引擎",
+    "javascript",
+    "nodejs",
+    "templating"
+  ],
+  "author": "eisneim <eisneim1@sina.com>",
+  "license": "MIT"
+}
