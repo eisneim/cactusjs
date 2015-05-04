@@ -17,6 +17,11 @@
     "nodejs",
     "templating"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eisneim/cactusjs"
+  },
+  "homepage": "http://eisneim.github.io/cactusjs",
   "author": "eisneim <eisneim1@sina.com>",
   "license": "MIT"
 }
