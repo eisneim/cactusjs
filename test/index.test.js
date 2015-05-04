@@ -20,6 +20,14 @@ var data = {
 describe('tempate file',function(){
 	var cactus = require('../index.js')( options );
 
+	it('should parse raw string',function(){
+		var escaped = cactus.parse('<h1>${name}</h1>',{name:'<i>eisniem</i>'});
+		var result = cactus.parse('<h1>#{name}</h1>',{name:'<i>eisniem</i>'});
+
+		expect( /lt;/.test(escaped) ).true;
+		expect( /<i>/.test(result) ).true;
+	})
+
 	it('should render basic template',function(done){
 		cactus.render('basic',data, function(output){
 

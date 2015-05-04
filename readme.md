@@ -5,7 +5,7 @@
 	 \___  >____  /\___  >__| |____//____  >
 	     \/     \/     \/                \/  js模板引擎 
 	-------------------------------------------------
-###快，简单，粗暴的JS模板引擎（目前有ES6编写，还只支持Node环境）
+###快，简单，粗暴的JS模板引擎（ES6编写，目前只支持Node）
 为什么又造一个模板引擎？我们开发的很多项目都是用Angular或者React作为前端，所以后端只需哟渲染出最index.html，以及在index中嵌入初始用户数据，这个时候用jade就是一种资源的浪费，我们并不需要如此庞大而慢的模板引擎，我们需要的简单快速，甚至粗暴的能解决问题有有良好性能的模板引擎，于是cactus就诞生了；
 
 ####JS
@@ -26,11 +26,15 @@ var user = {
 	age: 24,
 }
 
-cactus.render('home',user,function(html){
-	//渲染完成
+cactus.render('home', user ,function(html){
+	//渲染完成, 因为要读取模板文件所以是callback, 
+	//如果不传递callback，则返回Promise;
 	res.type('html')
 	res.status(200).send(html)
 })
+
+//处理字符
+var result = cactus.parse('<h1>{= name }</h1>',user )
 
 ```
 ####简单的变量处理
@@ -80,5 +84,5 @@ cactus.render('home',user,function(html){
 	
 ```
 ####以及其他任何js代码
-或许你已经发现，在cactus中可以像PHP一样嵌入任何代码，而且还可以自定义识别符
+或许你已经发现，在cactus中可以像PHP一样嵌入任何代码，而且还可以自定义识别符，就是这么简单粗暴！
 

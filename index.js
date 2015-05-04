@@ -88,6 +88,7 @@ class Cactus {
 		if(this.useCache && cacheCompiled[ tplName ]) 
 			return cacheCompiled[ tplName ]; 
 
+		if(!tplName) tplName = 'tpl-'+Math.ceil(Math.random()*10000);
 
 
 		var tpl = str.replace(/\n/g,'\\n')
@@ -96,7 +97,7 @@ class Cactus {
 		})
 		// replace unEscapted expressions
 		.replace( this.varUnEscExp, (match,code)=>{
-			return "'+ escape(data['"+code.trim()+"'])+'";
+			return "'+ data['"+code.trim()+"']+'";
 		})
 		// replace eval Expression here;
 		.replace( this.evalSignExp, (match,exp)=>{
@@ -123,6 +124,15 @@ class Cactus {
 
 	}
 	/**
+	 * parse just a string
+	 * @param  {string} tpl  
+	 * @param  {object} data 
+	 * @return {string}      
+	 */
+	parse(tpl,data){
+		return this.compile( tpl, null )( data, this.escape )
+	}
+	/**
 	 * [render description]
 	 * @param  {string} tplName [description]
 	 * @param  {string} data    [description]
@@ -130,20 +140,33 @@ class Cactus {
 	 */
 	render ( tplName ,  data , cb ) {
 		if(path.extname(tplName) !=='.html') tplName += '.html';
+		var self = this;
 
 		var tpl;
 		if( this.useCache ){
 			tpl = this.tplMap[ tplName ];
 
-			return cb( this.compile( tpl, tplName )( data, this.escape ) );
+			var result = this.compile( html , tplName )( data, this.escape );
+
+			if(cb && typeof cb == 'function'){
+				return cb( result );
+			}else{
+				return Promise.resolve( result )
+			}
 		} 
 		
-		loader.load( this.viewPath+'/'+tplName)
-		.then(html=>{
-			// tpl = html;
-			
-			return cb( this.compile( html , tplName )( data, this.escape ) );
-		});
+		var promise = loader.load( this.viewPath+'/'+tplName);
+		if(cb && typeof cb == 'function'){
+			promise.then(function(html){
+				cb( self.compile( html , tplName )( data, self.escape ) );	
+			})
+		}else{
+			return new Promise(function(resolve,reject){
+				promise.then(function(html){
+					resolve( self.compile( html , tplName )( data, self.escape ) )
+				})
+			})
+		}
 	}
 
 	*response( ctx, tplName, data ){
