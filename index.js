@@ -89,9 +89,9 @@ class Cactus {
 			return cacheCompiled[ tplName ]; 
 
 		if(!tplName) tplName = 'tpl-'+Math.ceil(Math.random()*10000);
+		cacheCompiled[ tplName ] = '错误！无法编译模板';
 
-
-		var tpl = str.replace(/\n/g,'\\n')
+		var tpl = str.replace(/\n/g,'\\n').replace(/'/g,"\\'")
 		.replace( this.varSignExp , (match,code)=>{
 			return "'+ escape(data['"+code.trim()+"'])+'";
 		})
@@ -110,9 +110,14 @@ class Cactus {
 		.replace( this.evalVarSignExp, (match,varname)=>{
 			return "'+"+varname+"+'";
 		});
+		
+		var functionbody = "var tpl='"+tpl+"';\nreturn tpl";
+		try{
+			cacheCompiled[ tplName ] = new Function( 'data','escape',functionbody )	
+		}catch(e){
+			console.log(e);
+		}
 
-		tpl = "var tpl='"+tpl+"';\nreturn tpl";
-		cacheCompiled[ tplName ] = new Function( 'data','escape',tpl )
 		return cacheCompiled[ tplName ];
 	}
 	/**
@@ -149,29 +154,29 @@ class Cactus {
 			var result = this.compile( html , tplName )( data, this.escape );
 
 			if(cb && typeof cb == 'function'){
-				return cb( result );
+				return cb( null,result );
 			}else{
 				return Promise.resolve( result )
 			}
+
 		} 
-		
 		var promise = loader.load( this.viewPath+'/'+tplName);
 		if(cb && typeof cb == 'function'){
-			promise.then(function(html){
-				cb( self.compile( html , tplName )( data, self.escape ) );	
-			})
+			promise.then( 
+				html => cb( null, self.compile( html , tplName )( data, self.escape ) )	
+			,	err=> cb(err) )
 		}else{
 			return new Promise(function(resolve,reject){
-				promise.then(function(html){
-					resolve( self.compile( html , tplName )( data, self.escape ) )
-				})
+				promise.then( html=>resolve( null,self.compile( html , tplName )( data, self.escape ) ) 
+				, err => reject( err ) )
 			})
 		}
 	}
 
 	*response( ctx, tplName, data ){
 		return new Promise( (resolve,reject)=>{
-			this.render(tplName,data, html => {
+			this.render(tplName,data,(err,html) => {
+				if(err) return reject( err );
 				ctx.type = 'html';
 				ctx.body =  html ;
 				resolve();

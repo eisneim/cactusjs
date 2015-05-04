@@ -26,7 +26,7 @@ var user = {
 	age: 24,
 }
 
-cactus.render('home', user ,function(html){
+cactus.render('home', user ,function(err,html){
 	//渲染完成, 因为要读取模板文件所以是callback, 
 	//如果不传递callback，则返回Promise;
 	res.type('html')
@@ -86,3 +86,6 @@ var result = cactus.parse('<h1>{= name }</h1>',user )
 ####以及其他任何js代码
 或许你已经发现，在cactus中可以像PHP一样嵌入任何代码，而且还可以自定义识别符，就是这么简单粗暴！
 
+####TODO
+ - @include 引用其他模板；
+ - 暂时想不到其他的了；

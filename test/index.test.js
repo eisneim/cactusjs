@@ -29,7 +29,7 @@ describe('tempate file',function(){
 	})
 
 	it('should render basic template',function(done){
-		cactus.render('basic',data, function(output){
+		cactus.render('basic',data, function(err,output){
 
 			expect( /eisneim/.test(output) ).true;
 			expect( /lt;/.test(output) ).true;
@@ -38,7 +38,7 @@ describe('tempate file',function(){
 	})
 
 	it('should render for loop',function(done){
-		cactus.render('loop',data, function(output){
+		cactus.render('loop',data, function(err,output){
 			expect(/3/.test(output)).true;
 
 			done();
@@ -47,14 +47,14 @@ describe('tempate file',function(){
 
 	it('should render complex tempate with function or any javascript',
 	function(done){
-		cactus.render('complex',data, function(output){
+		cactus.render('complex',data, function(err,output){
 			expect(/30/.test(output)).true;
 			done();
 		});
 	});
 
 	it('should render if',function(done){
-		cactus.render('if',data, function(output){
+		cactus.render('if',data, function(err,output){
 			expect(/adult/.test(output)).true;
 			done();
 		});
