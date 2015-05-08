@@ -21,6 +21,7 @@ var defaultOpt = {
 	varSignUnEscape: 	['{-','}'],
 	evalSign: 				['{@','@}'],
 	evalVarSign: 			['{=','=}'],
+	includeSign: 			['@include',';'],
 	useCache: 				process.env.NODE_ENV != 'development',
 	viewPath:         path.normalize(__dirname + '/../../views')
 }
@@ -47,7 +48,7 @@ class Cactus {
 			loader.batchLoad( this.viewPath )
 				.then(map=> this.tplMap = map )
 		}
-
+		this.supportedExt = ['html','js','css','md','tpl'];
 	}
 	/**
 	 * pares var sign to be a regular expression
@@ -121,6 +122,14 @@ class Cactus {
 		return cacheCompiled[ tplName ];
 	}
 	/**
+	 * solve the file inclusion
+	 * @param  {Function} cb [description]
+	 * @return {cb}      
+	 */
+	solveInclude( cb ){
+
+	}
+	/**
 	 * comple tempate string to be a es6 tempalte
 	 * @param  {string} str template string
 	 * @return {string}     [description]
@@ -144,6 +153,7 @@ class Cactus {
 	 * @return {string}         the compiled html;
 	 */
 	render ( tplName ,  data , cb ) {
+		// the default file type should be html;
 		if(path.extname(tplName) !=='.html') tplName += '.html';
 		var self = this;
 
@@ -173,11 +183,21 @@ class Cactus {
 		}
 	}
 
+	contentType(file){
+		var ext = path.extname(file).replace('.','');
+		if( this.supportedExt.indexOf(ext)< 0 ){
+			return 'html';
+		}
+		if(ext == 'js')  return 'javascript';
+		return ext;
+	}
+
 	*response( ctx, tplName, data ){
 		return new Promise( (resolve,reject)=>{
 			this.render(tplName,data,(err,html) => {
 				if(err) return reject( err );
-				ctx.type = 'html';
+				ctx.type = this.contentType( tplName );
+
 				ctx.body =  html ;
 				resolve();
 			})
