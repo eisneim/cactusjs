@@ -9,7 +9,7 @@ var options = {
 	evalSign: 				['{@','@}'],
 	evalVarSign: 			['{=','=}'],
 	useCache: 				false,
-	viewPath:         path.normalize(__dirname),
+	viewPath:         path.normalize(__dirname+'/views'),
 };
 
 var data = {
@@ -30,6 +30,7 @@ describe('tempate file',function(){
 
 	it('should render basic template',function(done){
 		cactus.render('basic',data, function(err,output){
+			if(err) console.log(err)
 
 			expect( /eisneim/.test(output) ).true;
 			expect( /lt;/.test(output) ).true;
@@ -39,6 +40,8 @@ describe('tempate file',function(){
 
 	it('should render for loop',function(done){
 		cactus.render('loop',data, function(err,output){
+			if(err) console.log(err)
+
 			expect(/3/.test(output)).true;
 
 			done();
@@ -48,19 +51,36 @@ describe('tempate file',function(){
 	it('should render complex tempate with function or any javascript',
 	function(done){
 		cactus.render('complex',data, function(err,output){
+			if(err) console.log(err)
 			expect(/30/.test(output)).true;
 			done();
 		});
 	});
 
-	it('should render if',function(done){
+	it('should render @include',function(done){
 		cactus.render('if',data, function(err,output){
-			expect(/adult/.test(output)).true;
+			if(err) console.log(err)
+
+			expect( /adult/.test(output) ).true;
+			expect( /home-title/.test(output) ).true;
+			expect( /loop3/.test(output) ).true;
+
 			done();
+
 		});
 	})
 
-	
+	it('should render css file',function(done){
+		cactus.render('cssfile.css',data, function(err,output){
+			if(err) console.log(err)
+			// console.log(err);
+			
+
+			expect(/eisneim/.test(output)).true;
+
+			done();
+		});
+	})
 
 
 })

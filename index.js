@@ -36,6 +36,7 @@ class Cactus {
 		this.varUnEscExp = this.parseSign(options.varSignUnEscape || defaultOpt.varSignUnEscape );
 		this.evalSignExp = this.parseSign( options.evalSign || defaultOpt.evalSign );
 		this.evalVarSignExp = this.parseSign( options.evalVarSign || defaultOpt.evalVarSign );
+		this.includeSignExp = this.parseSign( options.includeSign || defaultOpt.includeSign );
 
 		this.useES6 = options.useES6;
 
@@ -44,7 +45,12 @@ class Cactus {
 			this.useCache = defaultOpt.useCache;
 
 		this.viewPath = options.viewPath || defaultOpt.viewPath;
+		/**
+		 * if use cache, in the first run, load all template and solve include
+		 */
 		if( this.useCache ){
+			// TODO
+			// solve include;
 			loader.batchLoad( this.viewPath )
 				.then(map=> this.tplMap = map )
 		}
@@ -82,15 +88,15 @@ class Cactus {
 	/**
 	 * compile string to a function
 	 * @param  {string} str     [description]
-	 * @param  {string} tplName [description]
+	 * @param  {string} identify [description]
 	 * @return {function}       [description]
 	 */
-	compile ( str,tplName){
-		if(this.useCache && cacheCompiled[ tplName ]) 
-			return cacheCompiled[ tplName ]; 
+	compile ( str,identify){
+		if(this.useCache && cacheCompiled[ identify ]) 
+			return cacheCompiled[ identify ]; 
 
-		if(!tplName) tplName = 'tpl-'+Math.ceil(Math.random()*10000);
-		cacheCompiled[ tplName ] = '错误！无法编译模板';
+		if(!identify) identify = 'tpl-'+Math.ceil(Math.random()*10000);
+		cacheCompiled[ identify ] = '错误！无法编译模板';
 
 		var tpl = str.replace(/\n/g,'\\n').replace(/'/g,"\\'")
 		.replace( this.varSignExp , (match,code)=>{
@@ -109,25 +115,61 @@ class Cactus {
 			return "';"+exp.replace(/\\n/g,'')+" tpl+='";
 		})
 		.replace( this.evalVarSignExp, (match,varname)=>{
-			return "'+"+varname+"+'";
+			return "'+"+varname+"+'"
 		});
-		
+
+
 		var functionbody = "var tpl='"+tpl+"';\nreturn tpl";
+	// console.log(functionbody);
 		try{
-			cacheCompiled[ tplName ] = new Function( 'data','escape',functionbody )	
+			cacheCompiled[ identify ] = new Function( 'data','escape',functionbody )	
 		}catch(e){
+			console.log('=======error at create compile phase=====');
 			console.log(e);
 		}
-
-		return cacheCompiled[ tplName ];
+		// be caution here!!, when execute the function ,i might not throw error...
+		return cacheCompiled[ identify ];
 	}
 	/**
 	 * solve the file inclusion
 	 * @param  {Function} cb [description]
 	 * @return {cb}      
 	 */
-	solveInclude( cb ){
+	solveInclude( tpl ){
+		var pathes = [];
+		var self = this;
 
+		tpl = tpl.replace( this.includeSignExp, (match,tplPath) => {
+			tplPath = tplPath.trim();
+			pathes.push( tplPath );
+			return '__'+ tplPath +'__';
+		});
+		if(pathes.length<=0) return Promise.resolve( tpl );
+
+		return new Promise((resolve,reject)=> {
+			var index = 0, error=null;
+			function load( tplPath ){
+				var tplPath = path.extname(tplPath) =='' ?(pathes[index]+ '.html') : pathes[index];
+				loader.load( self.viewPath+'/'+ tplPath)
+				.then( html=> {
+
+					tpl = tpl.replace('__'+ pathes[index] +'__',html );
+					index++;
+					next();
+				}, err => reject(err) )
+			}
+
+			function next(){
+				if(error) return;
+				if( index< pathes.length ){
+					load( pathes[ index ] );
+				}else{
+					resolve( tpl )
+				}
+			}
+			next();
+
+		})
 	}
 	/**
 	 * comple tempate string to be a es6 tempalte
@@ -143,8 +185,8 @@ class Cactus {
 	 * @param  {object} data 
 	 * @return {string}      
 	 */
-	parse(tpl,data){
-		return this.compile( tpl, null )( data, this.escape )
+	parse(tpl,data,tplName){
+		return this.compile( tpl, tplName )( data, this.escape )
 	}
 	/**
 	 * [render description]
@@ -154,14 +196,12 @@ class Cactus {
 	 */
 	render ( tplName ,  data , cb ) {
 		// the default file type should be html;
-		if(path.extname(tplName) !=='.html') tplName += '.html';
+		if(path.extname(tplName) =='') tplName += '.html';
 		var self = this;
+		if( this.useCache){
 
-		var tpl;
-		if( this.useCache ){
-			tpl = this.tplMap[ tplName ];
-
-			var result = this.compile( html , tplName )( data, this.escape );
+			var cachedTpl = this.tplMap[ tplName ];
+			var result = this.parse( cachedTpl ,data, tplName );
 
 			if(cb && typeof cb == 'function'){
 				return cb( null,result );
@@ -170,17 +210,34 @@ class Cactus {
 			}
 
 		} 
+
 		var promise = loader.load( this.viewPath+'/'+tplName);
+		// use callbakc
 		if(cb && typeof cb == 'function'){
 			promise.then( 
-				html => cb( null, self.compile( html , tplName )( data, self.escape ) )	
-			,	err=> cb(err) )
+				html => {
+					self.solveInclude( html ).then( inclueded =>{
+
+						cb( null, self.parse( inclueded ,data, tplName) )
+
+					}, err=>cb(err));
+
+					cb( null,  output)
+				}	
+			,	err=>{ cb(err)} )
+		// use promise
 		}else{
 			return new Promise(function(resolve,reject){
-				promise.then( html=>resolve( null,self.compile( html , tplName )( data, self.escape ) ) 
+				promise.then( html=>{
+					self.solveInclude( html ).then(inclueded =>{
+						resolve( self.parse( inclueded ,data, tplName) )
+
+					},err=>cb(err) );
+				}
 				, err => reject( err ) )
 			})
 		}
+
 	}
 
 	contentType(file){
