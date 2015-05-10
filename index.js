@@ -51,7 +51,7 @@ class Cactus {
 		if( this.useCache ){
 			// TODO
 			// solve include;
-			loader.batchLoad( this.viewPath )
+			loader.batchLoad( this.viewPath, this )
 				.then(map=> this.tplMap = map )
 		}
 		this.supportedExt = ['html','js','css','md','tpl'];
