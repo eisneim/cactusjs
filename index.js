@@ -56,6 +56,14 @@ class Cactus {
 		}
 		this.supportedExt = ['html','js','css','md','tpl'];
 	}
+
+	extCheck( tplName ){
+		var extName = path.extname( tplName ).replace('.','');
+		if( extName == '' || this.supportedExt.indexOf( extName ) == -1) 
+			return tplName+'.html';
+
+		return tplName;
+	}
 	/**
 	 * pares var sign to be a regular expression
 	 * @param  {array} signs  
@@ -98,13 +106,13 @@ class Cactus {
 		if(!identify) identify = 'tpl-'+Math.ceil(Math.random()*10000);
 		cacheCompiled[ identify ] = '错误！无法编译模板';
 
-		var tpl = str.replace(/\n/g,'\\n').replace(/'/g,"\\'")
+		var tpl = str.replace(/\n/g,'').replace(/'/g,"\\'")
 		.replace( this.varSignExp , (match,code)=>{
-			return "'+ escape(data['"+code.trim()+"'])+'";
+			return "\'+ escape(data[\'"+code.trim()+"\'])+\'";
 		})
 		// replace unEscapted expressions
 		.replace( this.varUnEscExp, (match,code)=>{
-			return "'+ data['"+code.trim()+"']+'";
+			return "\'+ data[\'"+code.trim()+"\']+\'";
 		})
 		// replace eval Expression here;
 		.replace( this.evalSignExp, (match,exp)=>{
@@ -112,21 +120,18 @@ class Cactus {
 			 * TODO
 			 * check exp, only allow certen type of expression be evaled;
 			 */
-			return "';"+exp.replace(/\\n/g,'')+" tpl+='";
+			return "\';"+exp.replace(/\\n/g,'')+" tpl+=\'";
 		})
 		.replace( this.evalVarSignExp, (match,varname)=>{
-			return "'+"+varname+"+'"
+			return "\'+"+varname+"+\'"
 		});
 
 
-		var functionbody = "var tpl='"+tpl+"';\nreturn tpl";
-	// console.log(functionbody);
-		try{
-			cacheCompiled[ identify ] = new Function( 'data','escape',functionbody )	
-		}catch(e){
-			console.log('=======error at create compile phase=====');
-			console.log(e);
-		}
+		var functionbody = "var tpl=\'"+tpl +"\'; return tpl;";
+// console.log('the function body:-==========\n',functionbody);
+	
+		cacheCompiled[ identify ] = new Function( 'data','escape',functionbody )	
+		
 		// be caution here!!, when execute the function ,i might not throw error...
 		return cacheCompiled[ identify ];
 	}
@@ -149,7 +154,7 @@ class Cactus {
 		return new Promise((resolve,reject)=> {
 			var index = 0, error=null;
 			function load( tplPath ){
-				var tplPath = path.extname(tplPath) =='' ?(pathes[index]+ '.html') : pathes[index];
+				var tplPath = self.extCheck(tplPath);
 				loader.load( self.viewPath+'/'+ tplPath)
 				.then( html=> {
 
@@ -186,7 +191,15 @@ class Cactus {
 	 * @return {string}      
 	 */
 	parse(tpl,data,tplName){
-		return this.compile( tpl, tplName )( data, this.escape )
+		try{
+			var output = this.compile( tpl, tplName )( data, this.escape );
+			return output;
+		}catch (e){
+			console.log('========模板语法错误！！=========')
+			console.log(e);
+			throw e;
+		}
+		
 	}
 	/**
 	 * [render description]
@@ -196,7 +209,8 @@ class Cactus {
 	 */
 	render ( tplName ,  data , cb ) {
 		// the default file type should be html;
-		if(path.extname(tplName) =='') tplName += '.html';
+		tplName = this.extCheck( tplName );
+
 		var self = this;
 		if( this.useCache){
 

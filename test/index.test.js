@@ -73,10 +73,9 @@ describe('tempate file',function(){
 	it('should render css file',function(done){
 		cactus.render('cssfile.css',data, function(err,output){
 			if(err) console.log(err)
-			// console.log(err);
-			
 
-			expect(/eisneim/.test(output)).true;
+			console.log(output);
+			expect(/23/.test(output)).true;
 
 			done();
 		});
