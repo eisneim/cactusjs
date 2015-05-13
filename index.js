@@ -87,6 +87,7 @@ class Cactus {
 	 * @return {string}         
 	 */
 	escape ( string ){
+		if(!string) return '';
 		return string.replace(/&(?!\w+;)/g,'&amp;')
 								 .replace(/</g,'&lt;')
 								 .replace(/>/g,'&gt;')
