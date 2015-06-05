@@ -20,7 +20,7 @@ var defaultOpt = {
 	varSign	: 				['{=','}'],
 	varSignUnEscape: 	['{-','}'],
 	evalSign: 				['{@','@}'],
-	evalVarSign: 			['{=','=}'],
+	evalVarSign: 			['{#','}'],
 	includeSign: 			['@include',';'],
 	useCache: 				process.env.NODE_ENV != 'development',
 	viewPath:         path.normalize(__dirname + '/../../views')
@@ -49,10 +49,11 @@ class Cactus {
 		 * if use cache, in the first run, load all template and solve include
 		 */
 		if( this.useCache ){
-			// TODO
-			// solve include;
 			loader.batchLoad( this.viewPath, this )
-				.then(map=> this.tplMap = map )
+				.then( map=>{
+					console.log(Object.keys( map ))
+					this.tplMap = map;
+				})
 		}
 		this.supportedExt = ['html','js','css','md','tpl'];
 	}
@@ -72,7 +73,7 @@ class Cactus {
 	parseSign( signs ){
 		// frist insert nessary "\"
 		var regxs = signs.map( (sign) =>{
-			return sign.replace(/[\{\}\^\[\]\$\(\)\\\|\+\?\<\>]/g,(match,code)=>{
+			return sign.replace(/[\{\}\^\[\]\$\(\)\\\|\+\?\<\>\n]/g,(match,code)=>{
 				return '\\'+match;
 			});
 		});
@@ -87,7 +88,8 @@ class Cactus {
 	 * @return {string}         
 	 */
 	escape ( string ){
-		if(!string) return '';
+		if(!string ) return '';
+		if(typeof string != "string") return string;
 		return string.replace(/&(?!\w+;)/g,'&amp;')
 								 .replace(/</g,'&lt;')
 								 .replace(/>/g,'&gt;')
@@ -107,7 +109,12 @@ class Cactus {
 		if(!identify) identify = 'tpl-'+Math.ceil(Math.random()*10000);
 		cacheCompiled[ identify ] = '错误！无法编译模板';
 
-		var tpl = str.replace(/\n/g,'').replace(/'/g,"\\'")
+		var tpl = str
+		// remove comments inside of <script></script>
+		.replace( /\/\/([\s\S]+?)\n/g,"")
+		.replace( /\/\*([\s\S\n]+?)\*\//g,"")
+		.replace(/\n/g,'')
+		.replace(/'/g,"\\'")
 		.replace( this.varSignExp , (match,code)=>{
 			return "\'+ escape(data[\'"+code.trim()+"\'])+\'";
 		})
@@ -121,7 +128,7 @@ class Cactus {
 			 * TODO
 			 * check exp, only allow certen type of expression be evaled;
 			 */
-			return "\';"+exp.replace(/\\n/g,'')+" tpl+=\'";
+			return "\';"+exp.replace(/\\n/g,'')+"; tpl+=\'";
 		})
 		.replace( this.evalVarSignExp, (match,varname)=>{
 			return "\'+"+varname+"+\'"
@@ -168,6 +175,12 @@ class Cactus {
 			function next(){
 				if(error) return;
 				if( index< pathes.length ){
+					var cached = this.tplMap[ pathes[ index ] ];
+					if( cached ){
+						tpl = tpl.replace('__'+ pathes[index] +'__',cached );
+						index++;
+						return next();
+					} 
 					load( pathes[ index ] );
 				}else{
 					resolve( tpl )
@@ -197,7 +210,8 @@ class Cactus {
 			return output;
 		}catch (e){
 			console.log('========模板语法错误！！=========')
-			console.log(e);
+			// console.log(" {= expression =} 中expression记得要加分号';'")
+			console.trace(e);
 			throw e;
 		}
 		
