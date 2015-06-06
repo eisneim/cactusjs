@@ -31,6 +31,7 @@ var cacheCompiled = {};
 class Cactus {
 	constructor ( options ){
 		if(!options ) options = {};
+		var self = this;
 
 		this.varSignExp = this.parseSign( options.varSign || defaultOpt.varSign );
 		this.varUnEscExp = this.parseSign(options.varSignUnEscape || defaultOpt.varSignUnEscape );
@@ -45,21 +46,21 @@ class Cactus {
 			this.useCache = defaultOpt.useCache;
 
 		this.viewPath = options.viewPath || defaultOpt.viewPath;
+		this.supportedExt = options.exts || ['.html','.js','.css','.md','.tpl'];
 		/**
 		 * if use cache, in the first run, load all template and solve include
 		 */
 		if( this.useCache ){
-			loader.batchLoad( this.viewPath, this )
-				.then( map=>{
-					console.log(Object.keys( map ))
-					this.tplMap = map;
-				})
+			loader.batchLoad( this.viewPath, this.supportedExt, function(err,map){
+				self.tplMap = map;
+				// console.log( map )
+			})
 		}
-		this.supportedExt = ['html','js','css','md','tpl'];
+
 	}
 
 	extCheck( tplName ){
-		var extName = path.extname( tplName ).replace('.','');
+		var extName = path.extname( tplName );
 		if( extName == '' || this.supportedExt.indexOf( extName ) == -1) 
 			return tplName+'.html';
 
@@ -160,34 +161,23 @@ class Cactus {
 		if(pathes.length<=0) return Promise.resolve( tpl );
 
 		return new Promise((resolve,reject)=> {
-			var index = 0, error=null;
-			function load( tplPath ){
-				var tplPath = self.extCheck(tplPath);
-				loader.load( self.viewPath+'/'+ tplPath)
-				.then( html=> {
-
-					tpl = tpl.replace('__'+ pathes[index] +'__',html );
-					index++;
-					next();
-				}, err => reject(err) )
-			}
-
-			function next(){
-				if(error) return;
-				if( index< pathes.length ){
-					var cached = this.tplMap[ pathes[ index ] ];
-					if( cached ){
-						tpl = tpl.replace('__'+ pathes[index] +'__',cached );
-						index++;
-						return next();
-					} 
-					load( pathes[ index ] );
+			// recursive load
+			function load( pathes, index ){
+				var partialPath = self.extCheck(  pathes[index] );
+				var partial = self.tplMap[ partialPath ];
+				// we need to load this file;
+				if( !partial ){
+					loader.load( self.viewPath+'/'+ partialPath)
+					.then( html=> {
+						tpl = tpl.replace('__'+ pathes[index] +'__',html );
+						return pathes[index+1]? load( pathes, index+1 ) : resolve( tpl );
+					}, err => reject(err) )
 				}else{
-					resolve( tpl )
+					tpl = tpl.replace('__'+ pathes[index] +'__',partial );
+					return pathes[index+1]? load( pathes, index+1 ) : resolve( tpl );
 				}
 			}
-			next();
-
+			load( pathes, 0 );
 		})
 	}
 	/**
@@ -225,52 +215,48 @@ class Cactus {
 	render ( tplName ,  data , cb ) {
 		// the default file type should be html;
 		tplName = this.extCheck( tplName );
-
 		var self = this;
+		// use callbakc
+		var useCb = cb && typeof cb == 'function';
 		if( this.useCache){
-
-			var cachedTpl = this.tplMap[ tplName ];
-			var result = this.parse( cachedTpl ,data, tplName );
-
-			if(cb && typeof cb == 'function'){
-				return cb( null,result );
+			var cachedTpl = this.tplMap[ tplName ] || "no template found in cache!!";
+			if(useCb){
+				self.solveInclude( cachedTpl ).then( inclueded =>{
+					return cb( null, this.parse( inclueded ,data, tplName ) );
+				},err => cb(err) );
 			}else{
-				return Promise.resolve( result )
+				return new Promise( (resolve,reject) =>{
+					self.solveInclude( cachedTpl ).then( inclueded =>{
+						resolve( this.parse( inclueded ,data, tplName ) );
+					},err=> reject(err) );
+				});
 			}
-
+			return;
 		} 
 
 		var promise = loader.load( this.viewPath+'/'+tplName);
-		// use callbakc
-		if(cb && typeof cb == 'function'){
-			promise.then( 
-				html => {
+		if( useCb ){
+			promise.then(html => {
 					self.solveInclude( html ).then( inclueded =>{
-
 						cb( null, self.parse( inclueded ,data, tplName) )
-
 					}, err=>cb(err));
-
 					cb( null,  output)
 				}	
 			,	err=>{ cb(err)} )
 		// use promise
 		}else{
-			return new Promise(function(resolve,reject){
-				promise.then( html=>{
-					self.solveInclude( html ).then(inclueded =>{
-						resolve( self.parse( inclueded ,data, tplName) )
-
-					},err=>cb(err) );
-				}
-				, err => reject( err ) )
-			})
+			return promise.then( html=>{
+					return self.solveInclude( html )
+					.then(inclueded =>{
+						return Promise.resolve( self.parse( inclueded ,data, tplName) )
+					},err=>Promise.reject(err) );
+				}, Promise.reject(err))
 		}
 
 	}
 
 	contentType(file){
-		var ext = path.extname(file).replace('.','');
+		var ext = path.extname(file);
 		if( this.supportedExt.indexOf(ext)< 0 ){
 			return 'html';
 		}
