@@ -53,7 +53,7 @@ class Cactus {
 		if( this.useCache ){
 			loader.batchLoad( this.viewPath, this.supportedExt, function(err,map){
 				self.tplMap = map;
-				// console.log( map )
+				console.log( "all template cache loaded!" )
 			})
 		}
 
@@ -149,7 +149,7 @@ class Cactus {
 	 * @param  {Function} cb [description]
 	 * @return {cb}      
 	 */
-	solveInclude( tpl ){
+	solveInclude( tpl, cb ){
 		var pathes = [];
 		var self = this;
 
@@ -158,27 +158,28 @@ class Cactus {
 			pathes.push( tplPath );
 			return '__'+ tplPath +'__';
 		});
-		if(pathes.length<=0) return Promise.resolve( tpl );
 
-		return new Promise((resolve,reject)=> {
-			// recursive load
-			function load( pathes, index ){
-				var partialPath = self.extCheck(  pathes[index] );
-				var partial = self.tplMap[ partialPath ];
-				// we need to load this file;
-				if( !partial ){
-					loader.load( self.viewPath+'/'+ partialPath)
-					.then( html=> {
-						tpl = tpl.replace('__'+ pathes[index] +'__',html );
-						return pathes[index+1]? load( pathes, index+1 ) : resolve( tpl );
-					}, err => reject(err) )
-				}else{
-					tpl = tpl.replace('__'+ pathes[index] +'__',partial );
-					return pathes[index+1]? load( pathes, index+1 ) : resolve( tpl );
-				}
+		if(pathes.length<=0) return cb(null,tpl );
+		// recursive load
+		function load( pathes, index ){
+			var partialPath = self.extCheck(  pathes[index] );
+			var partial = self.tplMap ? self.tplMap[ partialPath ] : null;
+			// we need to load this file;
+			if( !partial ){
+				// console.log("no partial found!!", tpl.length )
+				loader.load( self.viewPath+'/'+ partialPath,function( err, html ){
+					if(err) return cb(err)
+					tpl = tpl.replace('__'+ pathes[index] +'__',html );
+					// console.log("inclued: ",tpl.length );
+					return pathes[index+1]? load( pathes, index+1 ) : cb(null, tpl );
+				})
+			}else{
+				tpl = tpl.replace('__'+ pathes[index] +'__',partial );
+				return pathes[index+1]? load( pathes, index+1 ) : cb(null, tpl );
 			}
-			load( pathes, 0 );
-		})
+		}
+		load( pathes, 0 );
+		
 	}
 	/**
 	 * comple tempate string to be a es6 tempalte
@@ -213,47 +214,33 @@ class Cactus {
 	 * @return {string}         the compiled html;
 	 */
 	render ( tplName ,  data , cb ) {
-		// the default file type should be html;
-		tplName = this.extCheck( tplName );
 		var self = this;
+		if(!cb && typeof cb == 'function' ) throw new Error("Cactus.render 需要一个callback")
+		// the default file type should be html;
+		// console.log("check ext ", tplName )
+		tplName = this.extCheck( tplName );
 		// use callbakc
-		var useCb = cb && typeof cb == 'function';
 		if( this.useCache){
 			var cachedTpl = this.tplMap[ tplName ] || "no template found in cache!!";
-			if(useCb){
-				self.solveInclude( cachedTpl ).then( inclueded =>{
-					return cb( null, this.parse( inclueded ,data, tplName ) );
-				},err => cb(err) );
-			}else{
-				return new Promise( (resolve,reject) =>{
-					self.solveInclude( cachedTpl ).then( inclueded =>{
-						resolve( this.parse( inclueded ,data, tplName ) );
-					},err=> reject(err) );
-				});
-			}
-			return;
+			
+			self.solveInclude( cachedTpl,function(err, inclueded ){
+				if(err) return cb(err);
+				return cb( null, self.parse( inclueded ,data, tplName ) );
+			});
+			
 		} 
 
-		var promise = loader.load( this.viewPath+'/'+tplName);
-		if( useCb ){
-			promise.then(html => {
-					self.solveInclude( html ).then( inclueded =>{
-						cb( null, self.parse( inclueded ,data, tplName) )
-					}, err=>cb(err));
-					cb( null,  output)
-				}	
-			,	err=>{ cb(err)} )
-		// use promise
-		}else{
-			return promise.then( html=>{
-					return self.solveInclude( html )
-					.then(inclueded =>{
-						return Promise.resolve( self.parse( inclueded ,data, tplName) )
-					},err=>Promise.reject(err) );
-				}, Promise.reject(err))
-		}
+		loader.load( this.viewPath+'/'+tplName, function( err,html){
+			if(err) return cb(err);
+			// console.log("got html:",html.length )
+			self.solveInclude( html,function(err,inclueded){
+				if(err) return cb(err);
+				// console.log("all include solved:", inclueded.length );
+				cb( null, self.parse( inclueded ,data, tplName) )
+			});
+		})
 
-	}
+	}//end of render
 
 	contentType(file){
 		var ext = path.extname(file);
@@ -265,15 +252,18 @@ class Cactus {
 	}
 
 	*response( ctx, tplName, data ){
+		console.log(" this is response function ")
+		var self = this;
 		return new Promise( (resolve,reject)=>{
-			this.render(tplName,data,(err,html) => {
+			self.render(tplName,data,(err,html) => {
 				if(err) return reject( err );
-				ctx.type = this.contentType( tplName );
-
+				ctx.type = self.contentType( tplName );
+				
 				ctx.body =  html ;
 				resolve();
 			})
 		})
+
 	}
 }
 
