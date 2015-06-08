@@ -11,7 +11,7 @@ yet another template engine built for speed and simplicity
 author: eisneim<eisneim1@sina.com>
 
 */
-
+var debug = require("debug")("cactus");
 var path = require('path');
 
 var loader = require('./lib/loader.js');
@@ -22,7 +22,7 @@ var defaultOpt = {
 	evalSign: 				['{@','@}'],
 	evalVarSign: 			['{#','}'],
 	includeSign: 			['@include',';'],
-	useCache: 				process.env.NODE_ENV != 'development',
+	useCache: 				process.env.NODE_ENV == 'production',
 	viewPath:         path.normalize(__dirname + '/../../views')
 }
 
@@ -112,10 +112,10 @@ class Cactus {
 
 		var tpl = str
 		// remove comments inside of <script></script>
-		.replace( /\/\/([\s\S]+?)\n/g,"")
-		.replace( /\/\*([\s\S\n]+?)\*\//g,"")
-		.replace(/\n/g,'')
-		.replace(/'/g,"\\'")
+		.replace( /^\/\/([\s\S]+?)\n/g,"")
+		.replace( /\/\*([\s\S\n]+?)\*\//g,"")// remove /* */ comments;
+		.replace(/\n/g,'') // repace new line 
+		.replace(/'/g,"\\'") // escape single quote
 		.replace( this.varSignExp , (match,code)=>{
 			return "\'+ escape(data[\'"+code.trim()+"\'])+\'";
 		})
@@ -137,8 +137,8 @@ class Cactus {
 
 
 		var functionbody = "var tpl=\'"+tpl +"\'; return tpl;";
-// console.log('the function body:-==========\n',functionbody);
-	
+		debug('the function body:\n',functionbody);
+		
 		cacheCompiled[ identify ] = new Function( 'data','escape',functionbody )	
 		
 		// be caution here!!, when execute the function ,i might not throw error...
@@ -252,7 +252,7 @@ class Cactus {
 	}
 
 	*response( ctx, tplName, data ){
-		console.log(" this is response function ")
+		// console.log(" this is response function ")
 		var self = this;
 		return new Promise( (resolve,reject)=>{
 			self.render(tplName,data,(err,html) => {
@@ -260,7 +260,7 @@ class Cactus {
 				ctx.type = self.contentType( tplName );
 				
 				ctx.body =  html ;
-				resolve();
+				resolve( true );
 			})
 		})
 
