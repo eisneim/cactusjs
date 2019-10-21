@@ -1,14 +1,14 @@
 /*
-                      __                
+                      __
   ____ _____    _____/  |_ __ __  ______
 _/ ___\\__  \ _/ ___\   __\  |  \/  ___/
-\  \___ / __ \\  \___|  | |  |  /\___ \ 
+\  \___ / __ \\  \___|  | |  |  /\___ \
  \___  >____  /\___  >__| |____//____  >
-     \/     \/     \/                \/   
+     \/     \/     \/                \/
 -------------------------------------------
 yet another template engine built for speed and simplicity
 
-author: eisneim<eisneim1@sina.com>
+author: eisneim<teli@spdpd.net>
 
 */
 var debug = require("debug")("cactus");
@@ -61,15 +61,15 @@ class Cactus {
 
 	extCheck( tplName ){
 		var extName = path.extname( tplName );
-		if( extName == '' || this.supportedExt.indexOf( extName ) == -1) 
+		if( extName == '' || this.supportedExt.indexOf( extName ) == -1)
 			return tplName+'.html';
 
 		return tplName;
 	}
 	/**
 	 * pares var sign to be a regular expression
-	 * @param  {array} signs  
-	 * @return {RegExp}       
+	 * @param  {array} signs
+	 * @return {RegExp}
 	 */
 	parseSign( signs ){
 		// frist insert nessary "\"
@@ -85,8 +85,8 @@ class Cactus {
 	}
 	/**
 	 * escape html entities to prevent XSS attack
-	 * @param  {string} string  
-	 * @return {string}         
+	 * @param  {string} string
+	 * @return {string}
 	 */
 	escape ( string ){
 		if(!string ) return '';
@@ -104,8 +104,8 @@ class Cactus {
 	 * @return {function}       [description]
 	 */
 	compile ( str,identify){
-		if(this.useCache && cacheCompiled[ identify ]) 
-			return cacheCompiled[ identify ]; 
+		if(this.useCache && cacheCompiled[ identify ])
+			return cacheCompiled[ identify ];
 
 		if(!identify) identify = 'tpl-'+Math.ceil(Math.random()*10000);
 		cacheCompiled[ identify ] = '错误！无法编译模板';
@@ -114,7 +114,7 @@ class Cactus {
 		// remove comments inside of <script></script>
 		.replace( /^\/\/([\s\S]+?)\n/g,"")
 		.replace( /\/\*([\s\S\n]+?)\*\//g,"")// remove /* */ comments;
-		.replace(/\n/g,'') // repace new line 
+		.replace(/\n/g,'') // repace new line
 		.replace(/'/g,"\\'") // escape single quote
 		.replace( this.varSignExp , (match,code)=>{
 			return "\'+ escape(data[\'"+code.trim()+"\'])+\'";
@@ -138,16 +138,16 @@ class Cactus {
 
 		var functionbody = "var tpl=\'"+tpl +"\'; return tpl;";
 		debug('the function body:\n',functionbody);
-		
-		cacheCompiled[ identify ] = new Function( 'data','escape',functionbody )	
-		
+
+		cacheCompiled[ identify ] = new Function( 'data','escape',functionbody )
+
 		// be caution here!!, when execute the function ,i might not throw error...
 		return cacheCompiled[ identify ];
 	}
 	/**
 	 * solve the file inclusion
 	 * @param  {Function} cb [description]
-	 * @return {cb}      
+	 * @return {cb}
 	 */
 	solveInclude( tpl, cb ){
 		var pathes = [];
@@ -179,7 +179,7 @@ class Cactus {
 			}
 		}
 		load( pathes, 0 );
-		
+
 	}
 	/**
 	 * comple tempate string to be a es6 tempalte
@@ -191,9 +191,9 @@ class Cactus {
 	}
 	/**
 	 * parse just a string
-	 * @param  {string} tpl  
-	 * @param  {object} data 
-	 * @return {string}      
+	 * @param  {string} tpl
+	 * @param  {object} data
+	 * @return {string}
 	 */
 	parse(tpl,data,tplName){
 		try{
@@ -205,7 +205,7 @@ class Cactus {
 			console.trace(e);
 			throw e;
 		}
-		
+
 	}
 	/**
 	 * [render description]
@@ -222,13 +222,13 @@ class Cactus {
 		// use callbakc
 		if( this.useCache){
 			var cachedTpl = this.tplMap[ tplName ] || "no template found in cache!!";
-			
+
 			self.solveInclude( cachedTpl,function(err, inclueded ){
 				if(err) return cb(err);
 				return cb( null, self.parse( inclueded ,data, tplName ) );
 			});
-			
-		} 
+
+		}
 
 		loader.load( this.viewPath+'/'+tplName, function( err,html){
 			if(err) return cb(err);
@@ -251,14 +251,14 @@ class Cactus {
 		return ext;
 	}
 
-	*response( ctx, tplName, data ){
+	*response(ctx, tplName, data){
 		// console.log(" this is response function ")
 		var self = this;
 		return new Promise( (resolve,reject)=>{
 			self.render(tplName,data,(err,html) => {
 				if(err) return reject( err );
 				ctx.type = self.contentType( tplName );
-				
+
 				ctx.body =  html ;
 				resolve( true );
 			})

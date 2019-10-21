@@ -1,7 +1,7 @@
 {
   "name": "cactusjs",
-  "version": "1.0.0",
-  "description": "快，简单，粗暴的JS模板引擎",
+  "version": "0.1.0",
+  "description": "支持自定义，简单粗暴的JS模板引擎",
   "main": "index.js",
   "directories": {
     "test": "test"
@@ -22,6 +22,6 @@
     "url": "https://github.com/eisneim/cactusjs"
   },
   "homepage": "http://eisneim.github.io/cactusjs",
-  "author": "eisneim <eisneim1@sina.com>",
+  "author": "eisneim <teli@spdpd.net>",
   "license": "MIT"
 }
